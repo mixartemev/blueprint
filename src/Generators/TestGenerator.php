@@ -219,7 +219,16 @@ class TestGenerator implements Generator
                                 $faker = 'word';
                             }
 
-                            $setup['data'][] = sprintf('$%s = $this->faker->%s;', $data, $faker);
+                            if ($controller->isApiResource()) {
+                                if ($name === 'update') {
+                                    $setup['data'][] = sprintf('$update = factory(%s)->make();', $local_model->name() . '::class');
+                                } else {
+                                    $setup['data'][] = sprintf('$%s = factory(%s)->make();', $data, $local_model->name() . '::class');
+                                }
+                            } else {
+                                $setup['data'][] = sprintf('$%s = $this->faker->%s;', $data, $faker);
+                            }
+
                             $request_data[$data] = '$' . $data;
                         }
                     }
@@ -363,7 +372,7 @@ class TestGenerator implements Generator
                     if ($statement->operation() === 'save') {
                         $tested_bits |= self::TESTS_SAVE;
 
-                        if ($request_data) {
+                        if ($request_data && !$controller->isApiResource()) {
                             $indent = str_pad(' ', 12);
                             $plural = Str::plural($variable);
                             $assertion = sprintf('$%s = %s::query()', $plural, $model);
@@ -375,6 +384,15 @@ class TestGenerator implements Generator
                             $assertions['sanity'][] = $assertion;
                             $assertions['sanity'][] = '$this->assertCount(1, $' . $plural . ');';
                             $assertions['sanity'][] = sprintf('$%s = $%s->first();', $variable, $plural);
+                        } elseif ($request_data && $controller->isApiResource()) {
+                            $indent = str_pad(' ', 12);
+                            $plural = Str::plural($variable);
+                            $assertion = sprintf('$%s = %s::query()', $plural, $model);
+                            $assertion .= PHP_EOL . sprintf('%s->where(\'id\', $response[\'data\'][\'id\'])', $indent);
+                            $assertion .= PHP_EOL . $indent . '->get();';
+
+                            $assertions['sanity'][] = $assertion;
+                            $assertions['sanity'][] = '$this->assertCount(1, $' . $plural . ');';
                         } else {
                             $assertions['generic'][] = '$this->assertDatabaseHas(' . Str::camel(Str::plural($model)) . ', [ /* ... */ ]);';
                         }
@@ -401,7 +419,7 @@ class TestGenerator implements Generator
             }
             $call .= ')';
 
-            if ($request_data) {
+            if ($request_data && !$controller->isApiResource()) {
                 $call .= ', [';
                 $call .= PHP_EOL;
                 foreach ($request_data as $key => $datum) {
@@ -412,7 +430,30 @@ class TestGenerator implements Generator
 
                 $call .= str_pad(' ', 8) . ']';
             }
+
+            if ($request_data && $controller->isApiResource()) {
+                $call .= ', ';
+                $datum = array_values($request_data)[0];
+                if ($name === 'update') {
+                    $call .= sprintf('$update->toArray()');
+                } else {
+                    $call .= sprintf('%s->toArray()', $datum);
+                }
+            }
+
             $call .= ');';
+
+            if ($name === 'store' && $controller->isApiResource()) {
+                $indent = str_pad(' ', 8);
+                $call .= PHP_EOL;
+                $call .= PHP_EOL;
+                $call .= sprintf('%s$response->assertCreated();', $indent);
+            } elseif (in_array($name, ['update', 'index', 'show']) && $controller->isApiResource()) {
+                $indent = str_pad(' ', 8);
+                $call .= PHP_EOL;
+                $call .= PHP_EOL;
+                $call .= sprintf('%s$response->assertOk();', $indent);
+            }
 
             $body = implode(PHP_EOL . PHP_EOL, array_map([$this, 'buildLines'], $this->uniqueSetupLines($setup)));
             $body .= PHP_EOL . PHP_EOL;

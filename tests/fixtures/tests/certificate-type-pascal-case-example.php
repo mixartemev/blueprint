@@ -23,6 +23,8 @@ class CertificateTypeControllerTest extends TestCase
         $certificateTypes = factory(CertificateType::class, 3)->create();
 
         $response = $this->get(route('certificate-type.index'));
+
+        $response->assertOk();
     }
 
 
@@ -43,17 +45,16 @@ class CertificateTypeControllerTest extends TestCase
      */
     public function store_saves()
     {
-        $certificateType = $this->faker->word;
+        $certificateType = factory(CertificateType::class)->make();
 
-        $response = $this->post(route('certificate-type.store'), [
-            'certificateType' => $certificateType,
-        ]);
+        $response = $this->post(route('certificate-type.store'), $certificateType->toArray());
+
+        $response->assertCreated();
 
         $certificateTypes = CertificateType::query()
-            ->where('certificateType', $certificateType)
+            ->where('id', $response['data']['id'])
             ->get();
         $this->assertCount(1, $certificateTypes);
-        $certificateType = $certificateTypes->first();
     }
 
 
@@ -65,6 +66,8 @@ class CertificateTypeControllerTest extends TestCase
         $certificateType = factory(CertificateType::class)->create();
 
         $response = $this->get(route('certificate-type.show', $certificateType));
+
+        $response->assertOk();
     }
 
 
@@ -86,11 +89,11 @@ class CertificateTypeControllerTest extends TestCase
     public function update_behaves_as_expected()
     {
         $certificateType = factory(CertificateType::class)->create();
-        $certificateType = $this->faker->word;
+        $update = factory(CertificateType::class)->make();
 
-        $response = $this->put(route('certificate-type.update', $certificateType), [
-            'certificateType' => $certificateType,
-        ]);
+        $response = $this->put(route('certificate-type.update', $certificateType), $update->toArray());
+
+        $response->assertOk();
     }
 
 
