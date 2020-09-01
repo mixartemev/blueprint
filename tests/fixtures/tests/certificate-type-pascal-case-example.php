@@ -25,6 +25,7 @@ class CertificateTypeControllerTest extends TestCase
         $response = $this->get(route('certificate-type.index'));
 
         $response->assertOk();
+        $response->assertJsonStructure([]);
     }
 
 
@@ -45,16 +46,20 @@ class CertificateTypeControllerTest extends TestCase
      */
     public function store_saves()
     {
-        $certificateType = factory(CertificateType::class)->make();
+        $name = $this->faker->name;
 
-        $response = $this->post(route('certificate-type.store'), $certificateType->toArray());
-
-        $response->assertCreated();
+        $response = $this->post(route('certificate-type.store'), [
+            'name' => $name,
+        ]);
 
         $certificateTypes = CertificateType::query()
-            ->where('id', $response['data']['id'])
+            ->where('name', $name)
             ->get();
         $this->assertCount(1, $certificateTypes);
+        $certificateType = $certificateTypes->first();
+
+        $response->assertCreated();
+        $response->assertJsonStructure([]);
     }
 
 
@@ -68,6 +73,7 @@ class CertificateTypeControllerTest extends TestCase
         $response = $this->get(route('certificate-type.show', $certificateType));
 
         $response->assertOk();
+        $response->assertJsonStructure([]);
     }
 
 
@@ -89,11 +95,18 @@ class CertificateTypeControllerTest extends TestCase
     public function update_behaves_as_expected()
     {
         $certificateType = factory(CertificateType::class)->create();
-        $update = factory(CertificateType::class)->make();
+        $name = $this->faker->name;
 
-        $response = $this->put(route('certificate-type.update', $certificateType), $update->toArray());
+        $response = $this->put(route('certificate-type.update', $certificateType), [
+            'name' => $name,
+        ]);
+
+        $certificateType->refresh();
 
         $response->assertOk();
+        $response->assertJsonStructure([]);
+
+        $this->assertEquals($name, $certificateType->name);
     }
 
 
@@ -106,7 +119,7 @@ class CertificateTypeControllerTest extends TestCase
 
         $response = $this->delete(route('certificate-type.destroy', $certificateType));
 
-        $response->assertOk();
+        $response->assertNoContent();
 
         $this->assertDeleted($certificateType);
     }

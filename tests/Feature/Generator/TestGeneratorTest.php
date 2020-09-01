@@ -5,6 +5,7 @@ namespace Tests\Feature\Generators;
 use Blueprint\Blueprint;
 use Blueprint\Generators\TestGenerator;
 use Blueprint\Lexers\StatementLexer;
+use Blueprint\Tree;
 use Tests\TestCase;
 
 /**
@@ -37,13 +38,13 @@ class TestGeneratorTest extends TestCase
      */
     public function output_writes_nothing_for_empty_tree()
     {
-        $this->files->expects('get')
-            ->with('stubs/test/class.stub')
-            ->andReturn(file_get_contents('stubs/test/class.stub'));
+        $this->files->expects('stub')
+            ->with('test.class.stub')
+            ->andReturn($this->stub('test.class.stub'));
 
         $this->files->shouldNotHaveReceived('put');
 
-        $this->assertEquals([], $this->subject->output(['controllers' => []]));
+        $this->assertEquals([], $this->subject->output(new Tree(['controllers' => []])));
     }
 
     /**
@@ -52,13 +53,13 @@ class TestGeneratorTest extends TestCase
      */
     public function output_generates_test_for_controller_tree($definition, $path, $test)
     {
-        $this->files->expects('get')
-            ->with('stubs/test/class.stub')
-            ->andReturn(file_get_contents('stubs/test/class.stub'));
+        $this->files->expects('stub')
+            ->with('test.class.stub')
+            ->andReturn($this->stub('test.class.stub'));
 
-        $this->files->expects('get')
-            ->with('stubs/test/case.stub')
-            ->andReturn(file_get_contents('stubs/test/case.stub'));
+        $this->files->expects('stub')
+            ->with('test.case.stub')
+            ->andReturn($this->stub('test.case.stub'));
         $dirname = dirname($path);
         $this->files->expects('exists')
             ->with($dirname)
@@ -79,13 +80,13 @@ class TestGeneratorTest extends TestCase
     */
     public function output_works_for_pascal_case_definition()
     {
-        $this->files->expects('get')
-            ->with('stubs/test/class.stub')
-            ->andReturn(file_get_contents('stubs/test/class.stub'));
+        $this->files->expects('stub')
+            ->with('test.class.stub')
+            ->andReturn($this->stub('test.class.stub'));
 
-        $this->files->expects('get')
-            ->with('stubs/test/case.stub')
-            ->andReturn(file_get_contents('stubs/test/case.stub'));
+        $this->files->expects('stub')
+            ->with('test.case.stub')
+            ->andReturn($this->stub('test.case.stub'));
 
         $certificateControllerTest = 'tests/Feature/Http/Controllers/CertificateControllerTest.php';
         $certificateTypeControllerTest = 'tests/Feature/Http/Controllers/CertificateTypeControllerTest.php';
@@ -112,13 +113,13 @@ class TestGeneratorTest extends TestCase
      */
     public function output_generates_test_for_controller_tree_using_cached_model()
     {
-        $this->files->expects('get')
-            ->with('stubs/test/class.stub')
-            ->andReturn(file_get_contents('stubs/test/class.stub'));
+        $this->files->expects('stub')
+            ->with('test.class.stub')
+            ->andReturn($this->stub('test.class.stub'));
 
-        $this->files->expects('get')
-            ->with('stubs/test/case.stub')
-            ->andReturn(file_get_contents('stubs/test/case.stub'));
+        $this->files->expects('stub')
+            ->with('test.case.stub')
+            ->andReturn($this->stub('test.case.stub'));
         $this->files->expects('exists')
             ->with('tests/Feature/Http/Controllers')
             ->andReturnFalse();
@@ -150,13 +151,13 @@ class TestGeneratorTest extends TestCase
 
         $this->app['config']->set('blueprint.models_namespace', 'Models');
 
-        $this->files->expects('get')
-            ->with('stubs/test/class.stub')
-            ->andReturn(file_get_contents('stubs/test/class.stub'));
+        $this->files->expects('stub')
+            ->with('test.class.stub')
+            ->andReturn($this->stub('test.class.stub'));
 
-        $this->files->expects('get')
-            ->with('stubs/test/case.stub')
-            ->andReturn(file_get_contents('stubs/test/case.stub'));
+        $this->files->expects('stub')
+            ->with('test.case.stub')
+            ->andReturn($this->stub('test.case.stub'));
         $dirname = dirname($path);
         $this->files->expects('exists')
             ->with($dirname)
@@ -176,9 +177,11 @@ class TestGeneratorTest extends TestCase
     {
         return [
             ['drafts/readme-example.yaml', 'tests/Feature/Http/Controllers/PostControllerTest.php', 'tests/readme-example.php'],
-            ['drafts/readme-example-notification.yaml', 'tests/Feature/Http/Controllers/PostControllerTest.php', 'tests/readme-example-notification.php'],
+            ['drafts/readme-example-notification-facade.yaml', 'tests/Feature/Http/Controllers/PostControllerTest.php', 'tests/readme-example-notification.php'],
+            ['drafts/readme-example-notification-model.yaml', 'tests/Feature/Http/Controllers/PostControllerTest.php', 'tests/readme-example-notification.php'],
             ['drafts/respond-statements.yaml', 'tests/Feature/Http/Controllers/Api/PostControllerTest.php', 'tests/respond-statements.php'],
             ['drafts/full-crud-example.yaml', 'tests/Feature/Http/Controllers/PostControllerTest.php', 'tests/full-crud-example.php'],
+            ['drafts/model-reference-validate.yaml', 'tests/Feature/Http/Controllers/CertificateControllerTest.php', 'tests/api-shorthand-validation.php'],
         ];
     }
 }

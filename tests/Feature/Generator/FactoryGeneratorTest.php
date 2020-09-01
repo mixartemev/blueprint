@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Generators;
 
+use Blueprint\Tree;
 use Tests\TestCase;
 use Blueprint\Blueprint;
 use Blueprint\Generators\FactoryGenerator;
@@ -37,11 +38,11 @@ class FactoryGeneratorTest extends TestCase
     {
         $this->files->expects('stub')
             ->with('factory.stub')
-            ->andReturn(file_get_contents('stubs/factory.stub'));
+            ->andReturn($this->stub('factory.stub'));
 
         $this->files->shouldNotHaveReceived('put');
 
-        $this->assertEquals([], $this->subject->output(['models' => []]));
+        $this->assertEquals([], $this->subject->output(new Tree(['models' => []])));
     }
 
     /**
@@ -52,7 +53,7 @@ class FactoryGeneratorTest extends TestCase
     {
         $this->files->expects('stub')
             ->with('factory.stub')
-            ->andReturn(file_get_contents('stubs/factory.stub'));
+            ->andReturn($this->stub('factory.stub'));
 
         $this->files->expects('exists')
             ->with('database/factories')
@@ -76,7 +77,7 @@ class FactoryGeneratorTest extends TestCase
 
         $this->files->expects('stub')
             ->with('factory.stub')
-            ->andReturn(file_get_contents('stubs/factory.stub'));
+            ->andReturn($this->stub('factory.stub'));
 
         $this->files->expects('exists')
             ->with('database/factories')
@@ -101,7 +102,7 @@ class FactoryGeneratorTest extends TestCase
 
         $this->files->expects('stub')
             ->with('factory.stub')
-            ->andReturn(file_get_contents('stubs/factory.stub'));
+            ->andReturn($this->stub('factory.stub'));
 
         $this->files->expects('exists')
             ->with('database/factories')
@@ -123,7 +124,7 @@ class FactoryGeneratorTest extends TestCase
     {
         $this->files->expects('stub')
             ->with('factory.stub')
-            ->andReturn(file_get_contents('stubs/factory.stub'));
+            ->andReturn($this->stub('factory.stub'));
 
         $this->files->expects('exists')
             ->with('database/factories/Admin')
@@ -153,6 +154,7 @@ class FactoryGeneratorTest extends TestCase
             ['drafts/foreign-key-shorthand.yaml', 'database/factories/CommentFactory.php', 'factories/foreign-key-shorthand.php'],
             ['drafts/resource-statements.yaml', 'database/factories/UserFactory.php', 'factories/resource-statements.php'],
             ['drafts/factory-smallint-and-tinyint.yaml', 'database/factories/ModelFactory.php', 'factories/factory-smallint-and-tinyint.php'],
+            ['drafts/all-column-types.yaml', 'database/factories/AllTypeFactory.php', 'factories/all-column-types.php'],
         ];
     }
 }

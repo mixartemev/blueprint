@@ -5,6 +5,7 @@ namespace Tests\Feature\Generators;
 use Blueprint\Blueprint;
 use Blueprint\Generators\ControllerGenerator;
 use Blueprint\Lexers\StatementLexer;
+use Blueprint\Tree;
 use Tests\TestCase;
 
 /**
@@ -38,12 +39,12 @@ class ControllerGeneratorTest extends TestCase
     public function output_writes_nothing_for_empty_tree()
     {
         $this->files->expects('stub')
-            ->with('controller/class.stub')
-            ->andReturn(file_get_contents('stubs/controller/class.stub'));
+            ->with('controller.class.stub')
+            ->andReturn($this->stub('controller.class.stub'));
 
         $this->files->shouldNotHaveReceived('put');
 
-        $this->assertEquals([], $this->subject->output(['controllers' => []]));
+        $this->assertEquals([], $this->subject->output(new Tree(['controllers' => []])));
     }
 
     /**
@@ -53,11 +54,11 @@ class ControllerGeneratorTest extends TestCase
     public function output_writes_migration_for_controller_tree($definition, $path, $controller)
     {
         $this->files->expects('stub')
-            ->with('controller/class.stub')
-            ->andReturn(file_get_contents('stubs/controller/class.stub'));
+            ->with('controller.class.stub')
+            ->andReturn($this->stub('controller.class.stub'));
         $this->files->expects('stub')
-            ->with('controller/method.stub')
-            ->andReturn(file_get_contents('stubs/controller/method.stub'));
+            ->with('controller.method.stub')
+            ->andReturn($this->stub('controller.method.stub'));
 
         $this->files->expects('exists')
             ->with(dirname($path))
@@ -82,11 +83,11 @@ class ControllerGeneratorTest extends TestCase
         $this->app['config']->set('blueprint.models_namespace', 'Models');
 
         $this->files->expects('stub')
-            ->with('controller/class.stub')
-            ->andReturn(file_get_contents('stubs/controller/class.stub'));
+            ->with('controller.class.stub')
+            ->andReturn($this->stub('controller.class.stub'));
         $this->files->expects('stub')
-            ->with('controller/method.stub')
-            ->andReturn(file_get_contents('stubs/controller/method.stub'));
+            ->with('controller.method.stub')
+            ->andReturn($this->stub('controller.method.stub'));
 
         $this->files->expects('exists')
             ->with(dirname($path))
@@ -106,11 +107,11 @@ class ControllerGeneratorTest extends TestCase
     public function output_works_for_pascal_case_definition()
     {
         $this->files->expects('stub')
-            ->with('controller/class.stub')
-            ->andReturn(file_get_contents('stubs/controller/class.stub'));
+            ->with('controller.class.stub')
+            ->andReturn($this->stub('controller.class.stub'));
         $this->files->expects('stub')
-            ->with('controller/method.stub')
-            ->andReturn(file_get_contents('stubs/controller/method.stub'))
+            ->with('controller.method.stub')
+            ->andReturn($this->stub('controller.method.stub'))
             ->twice();
 
         $certificateController = 'app/Http/Controllers/CertificateController.php';
@@ -143,11 +144,11 @@ class ControllerGeneratorTest extends TestCase
         $this->app['config']->set('blueprint.controllers_namespace', 'Other\\Http');
 
         $this->files->expects('stub')
-            ->with('controller/class.stub')
-            ->andReturn(file_get_contents('stubs/controller/class.stub'));
+            ->with('controller.class.stub')
+            ->andReturn($this->stub('controller.class.stub'));
         $this->files->expects('stub')
-            ->with('controller/method.stub')
-            ->andReturn(file_get_contents('stubs/controller/method.stub'));
+            ->with('controller.method.stub')
+            ->andReturn($this->stub('controller.method.stub'));
 
         $this->files->expects('exists')
             ->with('src/path/Other/Http')
@@ -167,10 +168,14 @@ class ControllerGeneratorTest extends TestCase
     {
         return [
             ['drafts/readme-example.yaml', 'app/Http/Controllers/PostController.php', 'controllers/readme-example.php'],
+            ['drafts/readme-example-notification-facade.yaml', 'app/Http/Controllers/PostController.php', 'controllers/readme-example-notification-facade.php'],
+            ['drafts/readme-example-notification-model.yaml', 'app/Http/Controllers/PostController.php', 'controllers/readme-example-notification-model.php'],
             ['drafts/crazy-eloquent.yaml', 'app/Http/Controllers/PostController.php', 'controllers/crazy-eloquent.php'],
             ['drafts/nested-components.yaml', 'app/Http/Controllers/Admin/UserController.php', 'controllers/nested-components.php'],
             ['drafts/respond-statements.yaml', 'app/Http/Controllers/Api/PostController.php', 'controllers/respond-statements.php'],
             ['drafts/resource-statements.yaml', 'app/Http/Controllers/UserController.php', 'controllers/resource-statements.php'],
+            ['drafts/save-without-validation.yaml', 'app/Http/Controllers/PostController.php', 'controllers/save-without-validation.php'],
+            ['drafts/api-routes-example.yaml', 'app/Http/Controllers/Api/CertificateController.php', 'controllers/api-routes-example.php'],
         ];
     }
 }

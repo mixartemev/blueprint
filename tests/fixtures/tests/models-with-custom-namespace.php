@@ -23,6 +23,9 @@ class CategoryControllerTest extends TestCase
         $categories = factory(Category::class, 3)->create();
 
         $response = $this->get(route('category.index'));
+
+        $response->assertOk();
+        $response->assertJsonStructure([]);
     }
 
 
@@ -43,17 +46,26 @@ class CategoryControllerTest extends TestCase
      */
     public function store_saves()
     {
-        $category = $this->faker->word;
+        $name = $this->faker->name;
+        $image = $this->faker->word;
+        $active = $this->faker->boolean;
 
         $response = $this->post(route('category.store'), [
-            'category' => $category,
+            'name' => $name,
+            'image' => $image,
+            'active' => $active,
         ]);
 
         $categories = Category::query()
-            ->where('category', $category)
+            ->where('name', $name)
+            ->where('image', $image)
+            ->where('active', $active)
             ->get();
         $this->assertCount(1, $categories);
         $category = $categories->first();
+
+        $response->assertCreated();
+        $response->assertJsonStructure([]);
     }
 
 
@@ -65,6 +77,9 @@ class CategoryControllerTest extends TestCase
         $category = factory(Category::class)->create();
 
         $response = $this->get(route('category.show', $category));
+
+        $response->assertOk();
+        $response->assertJsonStructure([]);
     }
 
 
@@ -86,11 +101,24 @@ class CategoryControllerTest extends TestCase
     public function update_behaves_as_expected()
     {
         $category = factory(Category::class)->create();
-        $category = $this->faker->word;
+        $name = $this->faker->name;
+        $image = $this->faker->word;
+        $active = $this->faker->boolean;
 
         $response = $this->put(route('category.update', $category), [
-            'category' => $category,
+            'name' => $name,
+            'image' => $image,
+            'active' => $active,
         ]);
+
+        $category->refresh();
+
+        $response->assertOk();
+        $response->assertJsonStructure([]);
+
+        $this->assertEquals($name, $category->name);
+        $this->assertEquals($image, $category->image);
+        $this->assertEquals($active, $category->active);
     }
 
 
@@ -103,7 +131,7 @@ class CategoryControllerTest extends TestCase
 
         $response = $this->delete(route('category.destroy', $category));
 
-        $response->assertOk();
+        $response->assertNoContent();
 
         $this->assertDeleted($category);
     }

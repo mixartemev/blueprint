@@ -4,8 +4,10 @@ namespace Tests\Feature\Generators;
 
 use Blueprint\Blueprint;
 use Blueprint\Generators\MigrationGenerator;
+use Blueprint\Tree;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\App;
+use Symfony\Component\Finder\SplFileInfo;
 use Tests\TestCase;
 
 /**
@@ -39,11 +41,11 @@ class MigrationGeneratorTest extends TestCase
     {
         $this->files->expects('stub')
             ->with('migration.stub')
-            ->andReturn(file_get_contents('stubs/migration.stub'));
+            ->andReturn($this->stub('migration.stub'));
 
         $this->files->shouldNotHaveReceived('put');
 
-        $this->assertEquals([], $this->subject->output(['models' => []]));
+        $this->assertEquals([], $this->subject->output(new Tree(['models' => []])));
     }
 
     /**
@@ -54,20 +56,57 @@ class MigrationGeneratorTest extends TestCase
     {
         $this->files->expects('stub')
             ->with('migration.stub')
-            ->andReturn(file_get_contents('stubs/migration.stub'));
+            ->andReturn($this->stub('migration.stub'));
 
         $now = Carbon::now();
         Carbon::setTestNow($now);
 
         $timestamp_path = str_replace('timestamp', $now->format('Y_m_d_His'), $path);
 
+        $this->files->expects('exists')
+            ->with($timestamp_path)
+            ->andReturn(false);
+
         $this->files->expects('put')
             ->with($timestamp_path, $this->fixture($migration));
 
-        $tokens = $this->blueprint->parse($this->fixture($definition));
+        $tokens = $this->blueprint->parse($this->fixture($definition), $definition !== 'drafts/indexes.yaml');
         $tree = $this->blueprint->analyze($tokens);
 
         $this->assertEquals(['created' => [$timestamp_path]], $this->subject->output($tree));
+    }
+
+    /**
+     * @test
+     * @dataProvider modelTreeDataProvider
+     */
+    public function output_updates_migration_for_model_tree($definition, $path, $migration)
+    {
+        $this->files->expects('stub')
+            ->with('migration.stub')
+            ->andReturn($this->stub('migration.stub'));
+
+        $yday = Carbon::yesterday();
+
+        $yesterday_path = str_replace('timestamp', $yday->format('Y_m_d_His'), $path);
+
+        $this->files->expects('files')
+            ->with('database/migrations/')
+            ->andReturn([
+                new SplFileInfo($yesterday_path, '', ''),
+            ]);
+
+        $this->files->expects('exists')
+            ->with($yesterday_path)
+            ->andReturn(true);
+
+        $this->files->expects('put')
+            ->with($yesterday_path, $this->fixture($migration));
+
+        $tokens = $this->blueprint->parse($this->fixture($definition), $definition !== 'drafts/indexes.yaml');
+        $tree = $this->blueprint->analyze($tokens);
+
+        $this->assertEquals(['updated' => [$yesterday_path]], $this->subject->output($tree, true));
     }
 
     /**
@@ -77,12 +116,14 @@ class MigrationGeneratorTest extends TestCase
     {
         $this->files->expects('stub')
             ->with('migration.stub')
-            ->andReturn(file_get_contents('stubs/migration.stub'));
+            ->andReturn($this->stub('migration.stub'));
 
         $now = Carbon::now();
         Carbon::setTestNow($now);
 
         $timestamp_path = str_replace('timestamp', $now->format('Y_m_d_His'), 'database/migrations/timestamp_create_comments_table.php');
+
+        $this->files->expects('exists')->andReturn(false);
 
         $this->files->expects('put')
             ->with($timestamp_path, $this->fixture('migrations/foreign-key-shorthand.php'));
@@ -100,13 +141,15 @@ class MigrationGeneratorTest extends TestCase
     {
         $this->files->expects('stub')
             ->with('migration.stub')
-            ->andReturn(file_get_contents('stubs/migration.stub'));
+            ->andReturn($this->stub('migration.stub'));
 
         $now = Carbon::now();
         Carbon::setTestNow($now);
 
         $post_path = str_replace('timestamp', $now->copy()->subSecond()->format('Y_m_d_His'), 'database/migrations/timestamp_create_posts_table.php');
         $comment_path = str_replace('timestamp', $now->format('Y_m_d_His'), 'database/migrations/timestamp_create_comments_table.php');
+
+        $this->files->expects('exists')->twice()->andReturn(false);
 
         $this->files->expects('put')
             ->with($post_path, $this->fixture('migrations/posts.php'));
@@ -121,23 +164,20 @@ class MigrationGeneratorTest extends TestCase
 
     /**
      * @test
+     * @environment-setup useLaravel6
      */
     public function output_uses_proper_data_type_for_id_columns_in_laravel6()
     {
-        $app = \Mockery::mock();
-        $app->shouldReceive('version')
-            ->withNoArgs()
-            ->andReturn('6.0.0');
-        App::swap($app);
-
         $this->files->expects('stub')
             ->with('migration.stub')
-            ->andReturn(file_get_contents('stubs/migration.stub'));
+            ->andReturn($this->stub('migration.stub'));
 
         $now = Carbon::now();
         Carbon::setTestNow($now);
 
         $timestamp_path = str_replace('timestamp', $now->format('Y_m_d_His'), 'database/migrations/timestamp_create_relationships_table.php');
+
+        $this->files->expects('exists')->andReturn(false);
 
         $this->files->expects('put')
             ->with($timestamp_path, $this->fixture('migrations/identity-columns-big-increments.php'));
@@ -157,12 +197,14 @@ class MigrationGeneratorTest extends TestCase
 
         $this->files->expects('stub')
             ->with('migration.stub')
-            ->andReturn(file_get_contents('stubs/migration.stub'));
+            ->andReturn($this->stub('migration.stub'));
 
         $now = Carbon::now();
         Carbon::setTestNow($now);
 
         $model_migration = str_replace('timestamp', $now->format('Y_m_d_His'), 'database/migrations/timestamp_create_comments_table.php');
+
+        $this->files->expects('exists')->andReturn(false);
 
         $this->files->expects('put')
             ->with($model_migration, $this->fixture('migrations/relationships-constraints.php'));
@@ -175,25 +217,22 @@ class MigrationGeneratorTest extends TestCase
 
     /**
      * @test
+     * @environment-setup useLaravel6
      */
     public function output_creates_constraints_for_unconventional_foreign_reference_migration_laravel6()
     {
         $this->app->config->set('blueprint.use_constraints', true);
 
-        $app = \Mockery::mock();
-        $app->shouldReceive('version')
-            ->withNoArgs()
-            ->andReturn('6.0.0');
-        App::swap($app);
-
         $this->files->expects('stub')
             ->with('migration.stub')
-            ->andReturn(file_get_contents('stubs/migration.stub'));
+            ->andReturn($this->stub('migration.stub'));
 
         $now = Carbon::now();
         Carbon::setTestNow($now);
 
         $model_migration = str_replace('timestamp', $now->format('Y_m_d_His'), 'database/migrations/timestamp_create_comments_table.php');
+
+        $this->files->expects('exists')->andReturn(false);
 
         $this->files->expects('put')
             ->with($model_migration, $this->fixture('migrations/relationships-constraints-laravel6.php'));
@@ -211,13 +250,15 @@ class MigrationGeneratorTest extends TestCase
     {
         $this->files->expects('stub')
             ->with('migration.stub')
-            ->andReturn(file_get_contents('stubs/migration.stub'));
+            ->andReturn($this->stub('migration.stub'));
 
         $now = Carbon::now();
         Carbon::setTestNow($now);
 
         $model_migration = str_replace('timestamp', $now->format('Y_m_d_His'), 'database/migrations/timestamp_create_journeys_table.php');
         $pivot_migration = str_replace('timestamp', $now->format('Y_m_d_His'), 'database/migrations/timestamp_create_diary_journey_table.php');
+
+        $this->files->expects('exists')->twice()->andReturn(false);
 
         $this->files->expects('put')
             ->with($model_migration, $this->fixture('migrations/belongs-to-many.php'));
@@ -233,23 +274,56 @@ class MigrationGeneratorTest extends TestCase
     /**
      * @test
      */
-    public function output_also_creates_pivot_table_migration_laravel6()
+    public function output_also_updates_pivot_table_migration()
     {
-        $app = \Mockery::mock();
-        $app->shouldReceive('version')
-            ->withNoArgs()
-            ->andReturn('6.0.0');
-        App::swap($app);
-
         $this->files->expects('stub')
             ->with('migration.stub')
-            ->andReturn(file_get_contents('stubs/migration.stub'));
+            ->andReturn($this->stub('migration.stub'));
+
+        $yday = Carbon::yesterday();
+
+        $model_migration = str_replace('timestamp', $yday->format('Y_m_d_His'), 'database/migrations/timestamp_create_journeys_table.php');
+        $pivot_migration = str_replace('timestamp', $yday->format('Y_m_d_His'), 'database/migrations/timestamp_create_diary_journey_table.php');
+
+        $this->files->expects('files')
+            ->with('database/migrations/')
+            ->twice()
+            ->andReturn([
+                new SplFileInfo($model_migration, '', ''),
+                new SplFileInfo($pivot_migration, '', ''),
+            ]);
+
+        $this->files->expects('exists')->with($model_migration)->andReturn(true);
+        $this->files->expects('exists')->with($pivot_migration)->andReturn(true);
+
+        $this->files->expects('put')
+            ->with($model_migration, $this->fixture('migrations/belongs-to-many.php'));
+        $this->files->expects('put')
+            ->with($pivot_migration, $this->fixture('migrations/belongs-to-many-pivot.php'));
+
+        $tokens = $this->blueprint->parse($this->fixture('drafts/belongs-to-many.yaml'));
+        $tree = $this->blueprint->analyze($tokens);
+
+        $this->assertEquals(['updated' => [$model_migration, $pivot_migration]], $this->subject->output($tree, true));
+    }
+
+    /**
+     * @test
+     * @environment-setup useLaravel6
+     */
+    public function output_also_creates_pivot_table_migration_laravel6()
+    {
+        $this->files->expects('stub')
+            ->with('migration.stub')
+            ->andReturn($this->stub('migration.stub'));
 
         $now = Carbon::now();
         Carbon::setTestNow($now);
 
         $model_migration = str_replace('timestamp', $now->format('Y_m_d_His'), 'database/migrations/timestamp_create_journeys_table.php');
         $pivot_migration = str_replace('timestamp', $now->format('Y_m_d_His'), 'database/migrations/timestamp_create_diary_journey_table.php');
+
+        $this->files->expects('exists')->twice()->andReturn(false);
 
         $this->files->expects('put')
             ->with($model_migration, $this->fixture('migrations/belongs-to-many-laravel6.php'));
@@ -272,13 +346,15 @@ class MigrationGeneratorTest extends TestCase
 
         $this->files->expects('stub')
             ->with('migration.stub')
-            ->andReturn(file_get_contents('stubs/migration.stub'));
+            ->andReturn($this->stub('migration.stub'));
 
         $now = Carbon::now();
         Carbon::setTestNow($now);
 
         $model_migration = str_replace('timestamp', $now->format('Y_m_d_His'), 'database/migrations/timestamp_create_journeys_table.php');
         $pivot_migration = str_replace('timestamp', $now->format('Y_m_d_His'), 'database/migrations/timestamp_create_diary_journey_table.php');
+
+        $this->files->expects('exists')->twice()->andReturn(false);
 
         $this->files->expects('put')
             ->with($model_migration, $this->fixture('migrations/belongs-to-many-key-constraints.php'));
@@ -294,26 +370,23 @@ class MigrationGeneratorTest extends TestCase
 
     /**
      * @test
+     * @environment-setup useLaravel6
      */
     public function output_also_creates_constraints_for_pivot_table_migration_laravel6()
     {
         $this->app->config->set('blueprint.use_constraints', true);
 
-        $app = \Mockery::mock();
-        $app->shouldReceive('version')
-            ->withNoArgs()
-            ->andReturn('6.0.0');
-        App::swap($app);
-
         $this->files->expects('stub')
             ->with('migration.stub')
-            ->andReturn(file_get_contents('stubs/migration.stub'));
+            ->andReturn($this->stub('migration.stub'));
 
         $now = Carbon::now();
         Carbon::setTestNow($now);
 
         $model_migration = str_replace('timestamp', $now->format('Y_m_d_His'), 'database/migrations/timestamp_create_journeys_table.php');
         $pivot_migration = str_replace('timestamp', $now->format('Y_m_d_His'), 'database/migrations/timestamp_create_diary_journey_table.php');
+
+        $this->files->expects('exists')->twice()->andReturn(false);
 
         $this->files->expects('put')
             ->with($model_migration, $this->fixture('migrations/belongs-to-many-key-constraints-laravel6.php'));
@@ -333,7 +406,7 @@ class MigrationGeneratorTest extends TestCase
     {
         $this->files->expects('stub')
             ->with('migration.stub')
-            ->andReturn(file_get_contents('stubs/migration.stub'));
+            ->andReturn($this->stub('migration.stub'));
 
         $now = Carbon::now();
         Carbon::setTestNow($now);
@@ -341,6 +414,8 @@ class MigrationGeneratorTest extends TestCase
         $company_migration = str_replace('timestamp', $now->copy()->subSecond()->format('Y_m_d_His'), 'database/migrations/timestamp_create_companies_table.php');
         $people_migration = str_replace('timestamp', $now->format('Y_m_d_His'), 'database/migrations/timestamp_create_people_table.php');
         $pivot_migration = str_replace('timestamp', $now->format('Y_m_d_His'), 'database/migrations/timestamp_create_company_person_table.php');
+
+        $this->files->expects('exists')->times(3)->andReturn(false);
 
         $this->files->expects('put')
             ->with($company_migration, $this->fixture('migrations/belongs-to-many-duplicated-company.php'));
@@ -357,18 +432,13 @@ class MigrationGeneratorTest extends TestCase
 
     /**
      * @test
+     * @environment-setup useLaravel6
      */
     public function output_does_not_duplicate_pivot_table_migration_laravel6()
     {
-        $app = \Mockery::mock();
-        $app->shouldReceive('version')
-            ->withNoArgs()
-            ->andReturn('6.0.0');
-        App::swap($app);
-
         $this->files->expects('stub')
             ->with('migration.stub')
-            ->andReturn(file_get_contents('stubs/migration.stub'));
+            ->andReturn($this->stub('migration.stub'));
 
         $now = Carbon::now();
         Carbon::setTestNow($now);
@@ -376,6 +446,8 @@ class MigrationGeneratorTest extends TestCase
         $company_migration = str_replace('timestamp', $now->copy()->subSecond()->format('Y_m_d_His'), 'database/migrations/timestamp_create_companies_table.php');
         $people_migration = str_replace('timestamp', $now->format('Y_m_d_His'), 'database/migrations/timestamp_create_people_table.php');
         $pivot_migration = str_replace('timestamp', $now->format('Y_m_d_His'), 'database/migrations/timestamp_create_company_person_table.php');
+
+        $this->files->expects('exists')->times(3)->andReturn(false);
 
         $this->files->expects('put')
             ->with($company_migration, $this->fixture('migrations/belongs-to-many-duplicated-company-laravel6.php'));
@@ -397,13 +469,15 @@ class MigrationGeneratorTest extends TestCase
     {
         $this->files->expects('stub')
             ->with('migration.stub')
-            ->andReturn(file_get_contents('stubs/migration.stub'));
+            ->andReturn($this->stub('migration.stub'));
 
         $now = Carbon::now();
         Carbon::setTestNow($now);
 
         $model_migration = str_replace('timestamp', $now->format('Y_m_d_His'), 'database/migrations/timestamp_create_users_table.php');
         $pivot_migration = str_replace('timestamp', $now->format('Y_m_d_His'), 'database/migrations/timestamp_create_test_table.php');
+
+        $this->files->expects('exists')->twice()->andReturn(false);
 
         $this->files->expects('put')
             ->with($model_migration, $this->fixture('migrations/custom-pivot-table-name-user.php'));
@@ -418,24 +492,21 @@ class MigrationGeneratorTest extends TestCase
 
     /**
      * @test
+     * @environment-setup useLaravel6
      */
     public function output_also_creates_pivot_table_migration_with_custom_name_laravel6()
     {
-        $app = \Mockery::mock();
-        $app->shouldReceive('version')
-            ->withNoArgs()
-            ->andReturn('6.0.0');
-        App::swap($app);
-
         $this->files->expects('stub')
             ->with('migration.stub')
-            ->andReturn(file_get_contents('stubs/migration.stub'));
+            ->andReturn($this->stub('migration.stub'));
 
         $now = Carbon::now();
         Carbon::setTestNow($now);
 
         $model_migration = str_replace('timestamp', $now->format('Y_m_d_His'), 'database/migrations/timestamp_create_users_table.php');
         $pivot_migration = str_replace('timestamp', $now->format('Y_m_d_His'), 'database/migrations/timestamp_create_test_table.php');
+
+        $this->files->expects('exists')->twice()->andReturn(false);
 
         $this->files->expects('put')
             ->with($model_migration, $this->fixture('migrations/custom-pivot-table-name-user-laravel6.php'));
@@ -457,12 +528,14 @@ class MigrationGeneratorTest extends TestCase
 
         $this->files->expects('stub')
             ->with('migration.stub')
-            ->andReturn(file_get_contents('stubs/migration.stub'));
+            ->andReturn($this->stub('migration.stub'));
 
         $now = Carbon::now();
         Carbon::setTestNow($now);
 
         $model_migration = str_replace('timestamp', $now->format('Y_m_d_His'), 'database/migrations/timestamp_create_carts_table.php');
+
+        $this->files->expects('exists')->andReturn(false);
 
         $this->files
             ->expects('put')
@@ -476,25 +549,22 @@ class MigrationGeneratorTest extends TestCase
 
     /**
      * @test
+     * @environment-setup useLaravel6
      */
     public function output_creates_foreign_keys_with_nullable_chained_correctly_laravel6()
     {
         $this->app->config->set('blueprint.on_delete', 'null');
 
-        $app = \Mockery::mock();
-        $app->shouldReceive('version')
-            ->withNoArgs()
-            ->andReturn('6.0.0');
-        App::swap($app);
-
         $this->files->expects('stub')
             ->with('migration.stub')
-            ->andReturn(file_get_contents('stubs/migration.stub'));
+            ->andReturn($this->stub('migration.stub'));
 
         $now = Carbon::now();
         Carbon::setTestNow($now);
 
         $model_migration = str_replace('timestamp', $now->format('Y_m_d_His'), 'database/migrations/timestamp_create_carts_table.php');
+
+        $this->files->expects('exists')->andReturn(false);
 
         $this->files
             ->expects('put')
@@ -513,12 +583,14 @@ class MigrationGeneratorTest extends TestCase
     {
         $this->files->expects('stub')
             ->with('migration.stub')
-            ->andReturn(file_get_contents('stubs/migration.stub'));
+            ->andReturn($this->stub('migration.stub'));
 
         $now = Carbon::now();
         Carbon::setTestNow($now);
 
         $model_migration = str_replace('timestamp', $now->format('Y_m_d_His'), 'database/migrations/timestamp_create_comments_table.php');
+
+        $this->files->expects('exists')->andReturn(false);
 
         $this->files
             ->expects('put')
@@ -532,23 +604,20 @@ class MigrationGeneratorTest extends TestCase
 
     /**
      * @test
+     * @environment-setup useLaravel6
      */
     public function output_creates_foreign_keys_with_on_delete_laravel6()
     {
-        $app = \Mockery::mock();
-        $app->shouldReceive('version')
-            ->withNoArgs()
-            ->andReturn('6.0.0');
-        App::swap($app);
-
         $this->files->expects('stub')
             ->with('migration.stub')
-            ->andReturn(file_get_contents('stubs/migration.stub'));
+            ->andReturn($this->stub('migration.stub'));
 
         $now = Carbon::now();
         Carbon::setTestNow($now);
 
         $model_migration = str_replace('timestamp', $now->format('Y_m_d_His'), 'database/migrations/timestamp_create_comments_table.php');
+
+        $this->files->expects('exists')->andReturn(false);
 
         $this->files
             ->expects('put')
@@ -567,7 +636,7 @@ class MigrationGeneratorTest extends TestCase
     {
         $this->files->expects('stub')
             ->with('migration.stub')
-            ->andReturn(file_get_contents('stubs/migration.stub'));
+            ->andReturn($this->stub('migration.stub'));
 
         $now = Carbon::now();
         Carbon::setTestNow($now);
@@ -575,6 +644,8 @@ class MigrationGeneratorTest extends TestCase
         $post_migration = str_replace('timestamp', $now->copy()->subSeconds(2)->format('Y_m_d_His'), 'database/migrations/timestamp_create_posts_table.php');
         $user_migration = str_replace('timestamp', $now->copy()->subSecond()->format('Y_m_d_His'), 'database/migrations/timestamp_create_users_table.php');
         $image_migration = str_replace('timestamp', $now->format('Y_m_d_His'), 'database/migrations/timestamp_create_images_table.php');
+
+        $this->files->expects('exists')->times(3)->andReturn(false);
 
         $this->files->expects('put')
             ->with($post_migration, $this->fixture('migrations/polymorphic_relationships_posts_table.php'));
@@ -591,18 +662,13 @@ class MigrationGeneratorTest extends TestCase
 
     /**
      * @test
+     * @environment-setup useLaravel6
      */
     public function output_works_with_polymorphic_relationships_laravel6()
     {
-        $app = \Mockery::mock();
-        $app->shouldReceive('version')
-            ->withNoArgs()
-            ->andReturn('6.0.0');
-        App::swap($app);
-
         $this->files->expects('stub')
             ->with('migration.stub')
-            ->andReturn(file_get_contents('stubs/migration.stub'));
+            ->andReturn($this->stub('migration.stub'));
 
         $now = Carbon::now();
         Carbon::setTestNow($now);
@@ -610,6 +676,8 @@ class MigrationGeneratorTest extends TestCase
         $post_migration = str_replace('timestamp', $now->copy()->subSeconds(2)->format('Y_m_d_His'), 'database/migrations/timestamp_create_posts_table.php');
         $user_migration = str_replace('timestamp', $now->copy()->subSecond()->format('Y_m_d_His'), 'database/migrations/timestamp_create_users_table.php');
         $image_migration = str_replace('timestamp', $now->format('Y_m_d_His'), 'database/migrations/timestamp_create_images_table.php');
+
+        $this->files->expects('exists')->times(3)->andReturn(false);
 
         $this->files->expects('put')
             ->with($post_migration, $this->fixture('migrations/polymorphic_relationships_posts_table_laravel6.php'));
@@ -633,6 +701,7 @@ class MigrationGeneratorTest extends TestCase
             ['drafts/soft-deletes.yaml', 'database/migrations/timestamp_create_comments_table.php', 'migrations/soft-deletes.php'],
             ['drafts/with-timezones.yaml', 'database/migrations/timestamp_create_comments_table.php', 'migrations/with-timezones.php'],
             ['drafts/relationships.yaml', 'database/migrations/timestamp_create_comments_table.php', 'migrations/relationships.php'],
+            ['drafts/indexes.yaml', 'database/migrations/timestamp_create_posts_table.php', 'migrations/indexes.php'],
             ['drafts/unconventional.yaml', 'database/migrations/timestamp_create_teams_table.php', 'migrations/unconventional.php'],
             ['drafts/optimize.yaml', 'database/migrations/timestamp_create_optimizes_table.php', 'migrations/optimize.php'],
             ['drafts/model-key-constraints.yaml', 'database/migrations/timestamp_create_orders_table.php', 'migrations/model-key-constraints.php'],
@@ -640,6 +709,8 @@ class MigrationGeneratorTest extends TestCase
             ['drafts/uuid-shorthand.yaml', 'database/migrations/timestamp_create_people_table.php', 'migrations/uuid-shorthand.php'],
             ['drafts/unconventional-foreign-key.yaml', 'database/migrations/timestamp_create_states_table.php', 'migrations/unconventional-foreign-key.php'],
             ['drafts/resource-statements.yaml', 'database/migrations/timestamp_create_users_table.php', 'migrations/resource-statements.php'],
+            ['drafts/enum-options.yaml', 'database/migrations/timestamp_create_messages_table.php', 'migrations/enum-options.php'],
+            ['drafts/columns-with-comments.yaml', 'database/migrations/timestamp_create_professions_table.php', 'migrations/columns-with-comments.php'],
         ];
     }
 }

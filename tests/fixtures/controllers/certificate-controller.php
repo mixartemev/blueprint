@@ -5,8 +5,8 @@ namespace App\Http\Controllers;
 use App\Certificate;
 use App\Http\Requests\CertificateStoreRequest;
 use App\Http\Requests\CertificateUpdateRequest;
-use App\Http\Resources\Certificate as CertificateResource;
 use App\Http\Resources\CertificateCollection;
+use App\Http\Resources\CertificateResource;
 use Illuminate\Http\Request;
 
 class CertificateController extends Controller
@@ -24,11 +24,11 @@ class CertificateController extends Controller
 
     /**
      * @param \App\Http\Requests\CertificateStoreRequest $request
-     * @return \App\Http\Resources\Certificate
+     * @return \App\Http\Resources\CertificateResource
      */
     public function store(CertificateStoreRequest $request)
     {
-        $certificate = Certificate::create($request->all());
+        $certificate = Certificate::create($request->validated());
 
         return new CertificateResource($certificate);
     }
@@ -36,7 +36,7 @@ class CertificateController extends Controller
     /**
      * @param \Illuminate\Http\Request $request
      * @param \App\Certificate $certificate
-     * @return \App\Http\Resources\Certificate
+     * @return \App\Http\Resources\CertificateResource
      */
     public function show(Request $request, Certificate $certificate)
     {
@@ -46,11 +46,11 @@ class CertificateController extends Controller
     /**
      * @param \App\Http\Requests\CertificateUpdateRequest $request
      * @param \App\Certificate $certificate
-     * @return \App\Http\Resources\Certificate
+     * @return \App\Http\Resources\CertificateResource
      */
     public function update(CertificateUpdateRequest $request, Certificate $certificate)
     {
-        $certificate->update([]);
+        $certificate->update($request->validated());
 
         return new CertificateResource($certificate);
     }
@@ -64,6 +64,6 @@ class CertificateController extends Controller
     {
         $certificate->delete();
 
-        return response()->noContent(200);
+        return response()->noContent();
     }
 }

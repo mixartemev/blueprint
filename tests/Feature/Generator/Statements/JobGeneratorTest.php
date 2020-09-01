@@ -5,6 +5,7 @@ namespace Tests\Feature\Generator\Statements;
 use Blueprint\Blueprint;
 use Blueprint\Generators\Statements\JobGenerator;
 use Blueprint\Lexers\StatementLexer;
+use Blueprint\Tree;
 use Tests\TestCase;
 
 /**
@@ -38,11 +39,11 @@ class JobGeneratorTest extends TestCase
     {
         $this->files->expects('stub')
             ->with('job.stub')
-            ->andReturn(file_get_contents('stubs/job.stub'));
+            ->andReturn($this->stub('job.stub'));
 
         $this->files->shouldNotHaveReceived('put');
 
-        $this->assertEquals([], $this->subject->output(['controllers' => []]));
+        $this->assertEquals([], $this->subject->output(new Tree(['controllers' => []])));
     }
 
     /**
@@ -52,7 +53,7 @@ class JobGeneratorTest extends TestCase
     {
         $this->files->expects('stub')
             ->with('job.stub')
-            ->andReturn(file_get_contents('stubs/job.stub'));
+            ->andReturn($this->stub('job.stub'));
 
         $this->files->shouldNotHaveReceived('put');
 
@@ -69,11 +70,11 @@ class JobGeneratorTest extends TestCase
     {
         $this->files->expects('stub')
             ->with('job.stub')
-            ->andReturn(file_get_contents('stubs/job.stub'));
+            ->andReturn($this->stub('job.stub'));
 
         $this->files->expects('stub')
-            ->with('partials/constructor.stub')
-            ->andReturn(file_get_contents('stubs/partials/constructor.stub'));
+            ->with('constructor.stub')
+            ->andReturn($this->stub('constructor.stub'));
 
         $this->files->shouldReceive('exists')
             ->twice()
@@ -106,7 +107,7 @@ class JobGeneratorTest extends TestCase
     {
         $this->files->expects('stub')
             ->with('job.stub')
-            ->andReturn(file_get_contents('stubs/job.stub'));
+            ->andReturn($this->stub('job.stub'));
 
         $this->files->expects('exists')
             ->with('app/Jobs/CreateUser.php')
@@ -131,7 +132,7 @@ class JobGeneratorTest extends TestCase
 
         $this->files->expects('stub')
             ->with('job.stub')
-            ->andReturn(file_get_contents('stubs/job.stub'));
+            ->andReturn($this->stub('job.stub'));
 
         $this->files->expects('exists')
             ->with('src/path/Jobs')

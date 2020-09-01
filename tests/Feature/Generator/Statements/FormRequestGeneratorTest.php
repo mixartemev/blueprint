@@ -5,6 +5,7 @@ namespace Tests\Feature\Generator\Statements;
 use Blueprint\Blueprint;
 use Blueprint\Generators\Statements\FormRequestGenerator;
 use Blueprint\Lexers\StatementLexer;
+use Blueprint\Tree;
 use Tests\TestCase;
 
 /**
@@ -38,12 +39,12 @@ class FormRequestGeneratorTest extends TestCase
     public function output_writes_nothing_for_empty_tree()
     {
         $this->files->expects('stub')
-            ->with('form-request.stub')
-            ->andReturn(file_get_contents('stubs/form-request.stub'));
+            ->with('request.stub')
+            ->andReturn($this->stub('request.stub'));
 
         $this->files->shouldNotHaveReceived('put');
 
-        $this->assertEquals([], $this->subject->output(['controllers' => []]));
+        $this->assertEquals([], $this->subject->output(new Tree(['controllers' => []])));
     }
 
     /**
@@ -52,8 +53,8 @@ class FormRequestGeneratorTest extends TestCase
     public function output_writes_nothing_without_validate_statements()
     {
         $this->files->expects('stub')
-            ->with('form-request.stub')
-            ->andReturn(file_get_contents('stubs/form-request.stub'));
+            ->with('request.stub')
+            ->andReturn($this->stub('request.stub'));
 
         $this->files->shouldNotHaveReceived('put');
 
@@ -69,8 +70,8 @@ class FormRequestGeneratorTest extends TestCase
     public function output_writes_form_requests()
     {
         $this->files->expects('stub')
-            ->with('form-request.stub')
-            ->andReturn(file_get_contents('stubs/form-request.stub'));
+            ->with('request.stub')
+            ->andReturn($this->stub('request.stub'));
 
         $this->files->shouldReceive('exists')
             ->times(3)
@@ -108,8 +109,8 @@ class FormRequestGeneratorTest extends TestCase
     public function output_writes_form_requests_with_support_for_model_reference_in_validate_statement()
     {
         $this->files->expects('stub')
-            ->with('form-request.stub')
-            ->andReturn(file_get_contents('stubs/form-request.stub'));
+            ->with('request.stub')
+            ->andReturn($this->stub('request.stub'));
 
         $this->files->shouldReceive('exists')
             ->twice()
@@ -145,8 +146,8 @@ class FormRequestGeneratorTest extends TestCase
     public function it_only_outputs_new_form_requests()
     {
         $this->files->expects('stub')
-            ->with('form-request.stub')
-            ->andReturn(file_get_contents('stubs/form-request.stub'));
+            ->with('request.stub')
+            ->andReturn($this->stub('request.stub'));
 
         $this->files->expects('exists')
             ->with('app/Http/Requests/PostIndexRequest.php')
@@ -170,8 +171,8 @@ class FormRequestGeneratorTest extends TestCase
     public function output_supports_nested_form_requests()
     {
         $this->files->expects('stub')
-            ->with('form-request.stub')
-            ->andReturn(file_get_contents('stubs/form-request.stub'));
+            ->with('request.stub')
+            ->andReturn($this->stub('request.stub'));
 
         $this->files->expects('exists')
             ->with('app/Http/Requests/Admin')
@@ -199,8 +200,8 @@ class FormRequestGeneratorTest extends TestCase
         $this->app['config']->set('blueprint.app_path', 'src/path');
 
         $this->files->expects('stub')
-            ->with('form-request.stub')
-            ->andReturn(file_get_contents('stubs/form-request.stub'));
+            ->with('request.stub')
+            ->andReturn($this->stub('request.stub'));
 
         $this->files->expects('exists')
             ->with('src/path/Http/Requests')
@@ -225,8 +226,8 @@ class FormRequestGeneratorTest extends TestCase
     public function output_generates_test_for_controller_tree_using_cached_model()
     {
         $this->files->expects('stub')
-            ->with('form-request.stub')
-            ->andReturn(file_get_contents('stubs/form-request.stub'));
+            ->with('request.stub')
+            ->andReturn($this->stub('request.stub'));
 
         $this->files->expects('exists')
             ->with('app/Http/Requests')

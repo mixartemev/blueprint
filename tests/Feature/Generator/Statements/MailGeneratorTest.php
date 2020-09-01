@@ -5,6 +5,7 @@ namespace Tests\Feature\Generator\Statements;
 use Blueprint\Blueprint;
 use Blueprint\Generators\Statements\MailGenerator;
 use Blueprint\Lexers\StatementLexer;
+use Blueprint\Tree;
 use Tests\TestCase;
 
 /**
@@ -38,11 +39,11 @@ class MailGeneratorTest extends TestCase
     {
         $this->files->expects('stub')
             ->with('mail.stub')
-            ->andReturn(file_get_contents('stubs/mail.stub'));
+            ->andReturn($this->stub('mail.stub'));
 
         $this->files->shouldNotHaveReceived('put');
 
-        $this->assertEquals([], $this->subject->output(['controllers' => []]));
+        $this->assertEquals([], $this->subject->output(new Tree(['controllers' => []])));
     }
 
     /**
@@ -52,7 +53,7 @@ class MailGeneratorTest extends TestCase
     {
         $this->files->expects('stub')
             ->with('mail.stub')
-            ->andReturn(file_get_contents('stubs/mail.stub'));
+            ->andReturn($this->stub('mail.stub'));
 
         $this->files->shouldNotHaveReceived('put');
 
@@ -69,11 +70,11 @@ class MailGeneratorTest extends TestCase
     {
         $this->files->expects('stub')
             ->with('mail.stub')
-            ->andReturn(file_get_contents('stubs/mail.stub'));
+            ->andReturn($this->stub('mail.stub'));
 
         $this->files->expects('stub')
-            ->with('partials/constructor.stub')
-            ->andReturn(file_get_contents('stubs/partials/constructor.stub'));
+            ->with('constructor.stub')
+            ->andReturn($this->stub('constructor.stub'));
 
         $this->files->shouldReceive('exists')
             ->twice()
@@ -106,7 +107,7 @@ class MailGeneratorTest extends TestCase
     {
         $this->files->expects('stub')
             ->with('mail.stub')
-            ->andReturn(file_get_contents('stubs/mail.stub'));
+            ->andReturn($this->stub('mail.stub'));
 
         $this->files->expects('exists')
             ->with('app/Mail/ReviewPost.php')
@@ -131,22 +132,22 @@ class MailGeneratorTest extends TestCase
 
         $this->files->expects('stub')
             ->with('mail.stub')
-            ->andReturn(file_get_contents('stubs/mail.stub'));
+            ->andReturn($this->stub('mail.stub'));
 
         $this->files->expects('exists')
             ->with('src/path/Mail')
             ->andReturnFalse();
         $this->files->expects('exists')
-            ->with('src/path/Mail/ReviewMail.php')
+            ->with('src/path/Mail/ReviewPost.php')
             ->andReturnFalse();
         $this->files->expects('makeDirectory')
             ->with('src/path/Mail', 0755, true);
         $this->files->expects('put')
-            ->with('src/path/Mail/ReviewMail.php', $this->fixture('mailables/mail-configured.php'));
+            ->with('src/path/Mail/ReviewPost.php', $this->fixture('mailables/mail-configured.php'));
 
         $tokens = $this->blueprint->parse($this->fixture('drafts/readme-example.yaml'));
         $tree = $this->blueprint->analyze($tokens);
 
-        $this->assertEquals(['created' => ['src/path/Mail/ReviewMail.php']], $this->subject->output($tree));
+        $this->assertEquals(['created' => ['src/path/Mail/ReviewPost.php']], $this->subject->output($tree));
     }
 }

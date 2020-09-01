@@ -5,6 +5,7 @@ namespace Tests\Feature\Generators;
 use Blueprint\Blueprint;
 use Blueprint\Generators\RouteGenerator;
 use Blueprint\Lexers\StatementLexer;
+use Blueprint\Tree;
 use Tests\TestCase;
 
 /**
@@ -38,7 +39,7 @@ class RouteGeneratorTest extends TestCase
     {
         $this->files->shouldNotHaveReceived('append');
 
-        $this->assertEquals([], $this->subject->output(['controllers' => []]));
+        $this->assertEquals([], $this->subject->output(new Tree(['controllers' => []])));
     }
 
     /**
@@ -85,6 +86,22 @@ class RouteGeneratorTest extends TestCase
         $tree = $this->blueprint->analyze($tokens);
 
         $this->assertEquals(['updated' => ['routes/api.php', 'routes/web.php']], $this->subject->output($tree));
+    }
+
+    /**
+     * @test
+     */
+    public function output_generates_routes_using_tuples()
+    {
+        config(['blueprint.generate_fqcn_route' => true]);
+
+        $this->files->expects('append')
+            ->with('routes/web.php', $this->fixture('routes/routes-tuples.php'));
+
+        $tokens = $this->blueprint->parse($this->fixture('drafts/routes-tuples.yaml'));
+        $tree = $this->blueprint->analyze($tokens);
+
+        $this->subject->output($tree);
     }
 
     public function controllerTreeDataProvider()

@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use Blueprint\Blueprint;
 use Blueprint\Contracts\Generator;
 use Blueprint\Contracts\Lexer;
+use Blueprint\Tree;
 use Symfony\Component\Yaml\Exception\ParseException;
 use Tests\TestCase;
 
@@ -63,7 +64,7 @@ class BlueprintTest extends TestCase
                     'user_id' => 'id',
                 ],
             ],
-            'seeders' => 'Post, Comment'
+            'seeders' => 'Post, Comment',
         ], $this->subject->parse($blueprint));
     }
 
@@ -78,10 +79,10 @@ class BlueprintTest extends TestCase
             'controllers' => [
                 'UserController' => [
                     'index' => [
-                        'action' => 'detail'
+                        'action' => 'detail',
                     ],
                     'create' => [
-                        'action' => 'additional detail'
+                        'action' => 'additional detail',
                     ],
                 ],
                 'RoleController' => [
@@ -111,9 +112,9 @@ class BlueprintTest extends TestCase
             ],
             'controllers' => [
                 'Context' => [
-                    'resource' => 'web'
-                ]
-            ]
+                    'resource' => 'web',
+                ],
+            ],
         ], $this->subject->parse($blueprint));
     }
 
@@ -130,7 +131,7 @@ class BlueprintTest extends TestCase
                     'id' => 'uuid primary',
                     'timestamps' => 'timestamps',
                 ],
-            ]
+            ],
         ], $this->subject->parse($blueprint));
     }
 
@@ -208,18 +209,19 @@ class BlueprintTest extends TestCase
                     'title' => 'string:400',
                     'content' => 'longtext',
                     'published_at' => 'nullable timestamp',
+                    'author_id' => 'id:user',
                 ],
             ],
             'controllers' => [
                 'Post' => [
                     'index' => [
-                        'query' => 'all:posts',
+                        'query' => 'all',
                         'render' => 'post.index with:posts',
                     ],
                     'store' => [
-                        'validate' => 'title, content',
+                        'validate' => 'title, content, author_id',
                         'save' => 'post',
-                        'send' => 'ReviewMail to:post.author with:post',
+                        'send' => 'ReviewPost to:post.author.email with:post',
                         'dispatch' => 'SyncMedia with:post',
                         'fire' => 'NewPost with:post',
                         'flash' => 'post.title',
@@ -250,18 +252,19 @@ class BlueprintTest extends TestCase
                     'title' => 'string:400',
                     'content' => 'longtext',
                     'published_at' => 'nullable timestamp',
+                    'author_id' => 'id:user',
                 ],
             ],
             'controllers' => [
                 'Post' => [
                     'index' => [
-                        'query' => 'all:posts',
+                        'query' => 'all',
                         'render' => 'post.index with:posts',
                     ],
                     'store' => [
-                        'validate' => 'title, content',
+                        'validate' => 'title, content, author_id',
                         'save' => 'post',
-                        'send' => 'ReviewMail to:post.author with:post',
+                        'send' => 'ReviewPost to:post.author.email with:post',
                         'dispatch' => 'SyncMedia with:post',
                         'fire' => 'NewPost with:post',
                         'flash' => 'post.title',
@@ -273,6 +276,50 @@ class BlueprintTest extends TestCase
 
         $this->assertEquals($expected, $this->subject->parse($definition_mac_eol));
         $this->assertEquals($expected, $this->subject->parse($definition_windows_eol));
+    }
+
+    /**
+     * @test
+     */
+    public function it_parses_yaml_with_dashed_syntax()
+    {
+        $definition = $this->fixture('drafts/readme-example-dashes.yaml');
+
+        $expected = [
+            'models' => [
+                'Post' => [
+                    'title' => 'string:400',
+                    'content' => 'longtext',
+                ],
+            ],
+            'controllers' => [
+                'Post' => [
+                    'index' => [
+                        'query' => 'all:posts',
+                        'render' => 'post.index with:posts',
+                    ],
+                    'store' => [
+                        'validate' => 'title, content',
+                        'save' => 'post',
+                        'redirect' => 'post.index',
+                    ],
+                ],
+            ],
+        ];
+
+        $this->assertEquals($expected, $this->subject->parse($definition));
+    }
+
+    /**
+     * @test
+     */
+    public function it_allows_parsing_without_stripping_dashes()
+    {
+        $sequence = [
+            'numbers' => range(3, 11),
+        ];
+
+        $this->assertEquals($sequence, $this->subject->parse($this->subject->dump($sequence), false));
     }
 
     /**
@@ -294,11 +341,13 @@ class BlueprintTest extends TestCase
     {
         $tokens = [];
 
-        $this->assertEquals([
-            'models' => [],
-            'controllers' => []
-        ],
-            $this->subject->analyze($tokens));
+        $this->assertEquals(
+            [
+                'models' => [],
+                'controllers' => [],
+            ],
+            $this->subject->analyze($tokens)->toArray()
+        );
     }
 
     /**
@@ -317,8 +366,8 @@ class BlueprintTest extends TestCase
         $this->assertEquals([
             'models' => [],
             'controllers' => [],
-            'mock' => 'lexer'
-        ], $this->subject->analyze($tokens));
+            'mock' => 'lexer',
+        ], $this->subject->analyze($tokens)->toArray());
     }
 
     /**
@@ -327,22 +376,35 @@ class BlueprintTest extends TestCase
     public function generate_uses_registered_generators_and_returns_generated_files()
     {
         $generatorOne = \Mockery::mock(Generator::class);
-        $tree = ['branch' => ['code', 'attributes']];
+        $tree = new Tree(['branch' => ['code', 'attributes']]);
+
         $generatorOne->expects('output')
-            ->with($tree)
+            ->with($tree, false)
             ->andReturn([
                 'created' => ['one/new.php'],
                 'updated' => ['one/existing.php'],
-                'deleted' => ['one/trashed.php']
+                'deleted' => ['one/trashed.php'],
+            ]);
+
+        $generatorOne->expects('types')
+            ->andReturn([
+                'some',
+                'types',
             ]);
 
         $generatorTwo = \Mockery::mock(Generator::class);
         $generatorTwo->expects('output')
-            ->with($tree)
+            ->with($tree, false)
             ->andReturn([
                 'created' => ['two/new.php'],
                 'updated' => ['two/existing.php'],
-                'deleted' => ['two/trashed.php']
+                'deleted' => ['two/trashed.php'],
+            ]);
+
+        $generatorTwo->expects('types')
+            ->andReturn([
+                'some',
+                'types',
             ]);
 
         $this->subject->registerGenerator($generatorOne);
@@ -361,16 +423,23 @@ class BlueprintTest extends TestCase
     public function generate_uses_swapped_generator_and_returns_generated_files()
     {
         $generatorOne = \Mockery::mock(Generator::class);
-        $tree = ['branch' => ['code', 'attributes']];
+        $tree = new Tree(['branch' => ['code', 'attributes']]);
+
         $generatorOne->expects('output')->never();
 
         $generatorSwap = \Mockery::mock(Generator::class);
         $generatorSwap->expects('output')
-            ->with($tree)
+            ->with($tree, false)
             ->andReturn([
                 'created' => ['swapped/new.php'],
                 'updated' => ['swapped/existing.php'],
-                'deleted' => ['swapped/trashed.php']
+                'deleted' => ['swapped/trashed.php'],
+            ]);
+
+        $generatorSwap->expects('types')
+            ->andReturn([
+                'some',
+                'types',
             ]);
 
         $this->subject->registerGenerator($generatorOne);
@@ -381,6 +450,210 @@ class BlueprintTest extends TestCase
             'updated' => ['swapped/existing.php'],
             'deleted' => ['swapped/trashed.php'],
         ], $this->subject->generate($tree));
+    }
+
+    /**
+     * @test
+     */
+    public function generate_only_one_specific_type()
+    {
+        $generatorFoo = \Mockery::mock(Generator::class);
+        $tree = new Tree(['branch' => ['code', 'attributes']]);
+
+        $only = ['bar'];
+        $skip = [];
+
+        $generatorFoo->shouldReceive('output')
+            ->with($tree, false)
+            ->andReturn([
+                'created' => ['foo.php'],
+            ]);
+
+        $generatorFoo->shouldReceive('types')
+            ->andReturn(['foo']);
+
+        $generatorBar = \Mockery::mock(Generator::class);
+        $generatorBar->shouldReceive('output')
+            ->with($tree, false)
+            ->andReturn([
+                'created' => ['bar.php'],
+            ]);
+
+        $generatorBar->shouldReceive('types')
+            ->andReturn(['bar']);
+
+        $generatorBaz = \Mockery::mock(Generator::class);
+        $generatorBaz->shouldReceive('output')
+            ->with($tree, false)
+            ->andReturn([
+                'created' => ['baz.php'],
+            ]);
+
+        $generatorBaz->shouldReceive('types')
+            ->andReturn(['baz']);
+
+        $this->subject->registerGenerator($generatorFoo);
+        $this->subject->registerGenerator($generatorBar);
+        $this->subject->registerGenerator($generatorBaz);
+
+        $actual = $this->subject->generate($tree, $only, $skip);
+
+        $this->assertEquals([
+            'created' => ['bar.php'],
+        ], $actual);
+    }
+
+    /**
+     * @test
+     */
+    public function generate_only_specific_types()
+    {
+        $generatorFoo = \Mockery::mock(Generator::class);
+        $tree = new Tree(['branch' => ['code', 'attributes']]);
+
+        $only = ['foo', 'bar'];
+        $skip = [];
+
+        $generatorFoo->shouldReceive('output')
+            ->with($tree, false)
+            ->andReturn([
+                'created' => ['foo.php'],
+            ]);
+
+        $generatorFoo->shouldReceive('types')
+            ->andReturn(['foo']);
+
+        $generatorBar = \Mockery::mock(Generator::class);
+        $generatorBar->shouldReceive('output')
+            ->with($tree, false)
+            ->andReturn([
+                'created' => ['bar.php'],
+            ]);
+
+        $generatorBar->shouldReceive('types')
+            ->andReturn(['bar']);
+
+        $generatorBaz = \Mockery::mock(Generator::class);
+        $generatorBaz->shouldReceive('output')
+            ->with($tree, false)
+            ->andReturn([
+                'created' => ['baz.php'],
+            ]);
+
+        $generatorBaz->shouldReceive('types')
+            ->andReturn(['baz']);
+
+        $this->subject->registerGenerator($generatorFoo);
+        $this->subject->registerGenerator($generatorBar);
+        $this->subject->registerGenerator($generatorBaz);
+
+        $actual = $this->subject->generate($tree, $only, $skip);
+
+        $this->assertEquals([
+            'created' => ['foo.php', 'bar.php'],
+        ], $actual);
+    }
+
+    /**
+     * @test
+     */
+    public function generate_should_skip_one_specific_type()
+    {
+        $generatorFoo = \Mockery::mock(Generator::class);
+        $tree = new Tree(['branch' => ['code', 'attributes']]);
+
+        $only = [];
+        $skip = ['bar'];
+
+        $generatorFoo->shouldReceive('output')
+            ->with($tree, false)
+            ->andReturn([
+                'created' => ['foo.php'],
+            ]);
+
+        $generatorFoo->shouldReceive('types')
+            ->andReturn(['foo']);
+
+        $generatorBar = \Mockery::mock(Generator::class);
+        $generatorBar->shouldReceive('output')
+            ->with($tree, false)
+            ->andReturn([
+                'created' => ['bar.php'],
+            ]);
+
+        $generatorBar->shouldReceive('types')
+            ->andReturn(['bar']);
+
+        $generatorBaz = \Mockery::mock(Generator::class);
+        $generatorBaz->shouldReceive('output')
+            ->with($tree, false)
+            ->andReturn([
+                'created' => ['baz.php'],
+            ]);
+
+        $generatorBaz->shouldReceive('types')
+            ->andReturn(['baz']);
+
+        $this->subject->registerGenerator($generatorFoo);
+        $this->subject->registerGenerator($generatorBar);
+        $this->subject->registerGenerator($generatorBaz);
+
+        $actual = $this->subject->generate($tree, $only, $skip);
+
+        $this->assertEquals([
+            'created' => ['foo.php', 'baz.php'],
+        ], $actual);
+    }
+
+    /**
+     * @test
+     */
+    public function generate_should_skip_specific_types()
+    {
+        $generatorFoo = \Mockery::mock(Generator::class);
+        $tree = new Tree(['branch' => ['code', 'attributes']]);
+
+        $only = [];
+        $skip = ['bar', 'baz'];
+
+        $generatorFoo->shouldReceive('output')
+            ->with($tree, false)
+            ->andReturn([
+                'created' => ['foo.php'],
+            ]);
+
+        $generatorFoo->shouldReceive('types')
+            ->andReturn(['foo']);
+
+        $generatorBar = \Mockery::mock(Generator::class);
+        $generatorBar->shouldReceive('output')
+            ->with($tree)
+            ->andReturn([
+                'created' => ['bar.php'],
+            ]);
+
+        $generatorBar->shouldReceive('types')
+            ->andReturn(['bar']);
+
+        $generatorBaz = \Mockery::mock(Generator::class);
+        $generatorBaz->shouldReceive('output')
+            ->with($tree, false)
+            ->andReturn([
+                'created' => ['baz.php'],
+            ]);
+
+        $generatorBaz->shouldReceive('types')
+            ->andReturn(['baz']);
+
+        $this->subject->registerGenerator($generatorFoo);
+        $this->subject->registerGenerator($generatorBar);
+        $this->subject->registerGenerator($generatorBaz);
+
+        $actual = $this->subject->generate($tree, $only, $skip);
+
+        $this->assertEquals([
+            'created' => ['foo.php'],
+        ], $actual);
     }
 
     /**

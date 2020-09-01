@@ -22,10 +22,25 @@ class TestCase extends \Orchestra\Testbench\TestCase
         return file_get_contents(__DIR__ . '/' . 'fixtures' . '/' . ltrim($path, '/'));
     }
 
+    public function stub(string $path)
+    {
+        return file_get_contents(__DIR__ . '/../' . 'stubs' . '/' . ltrim($path, '/'));
+    }
+
     protected function getPackageProviders($app)
     {
         return [
             BlueprintServiceProvider::class,
         ];
+    }
+
+    protected function useLaravel6($app)
+    {
+        $appMock = \Mockery::mock($app);
+        $appMock->shouldReceive('version')
+            ->withNoArgs()
+            ->andReturn('6.0.0');
+
+        \App::swap($appMock);
     }
 }
